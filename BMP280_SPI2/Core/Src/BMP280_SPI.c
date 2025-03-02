@@ -98,15 +98,7 @@ uint8_t BMP280_SPI_Init(void)
     if (BMP280_WriteRegister(BMP280_REG_CTRL_MEAS, 0x27) != HAL_OK)
     {
         printf("Failed to configure BMP280.\r\n");
-        return 0;Using interrupts in your SPI communication with the BMP280 will improve the overall efficiency of your system by making it non-blocking and more responsive. It also frees up CPU cycles for other tasks while the sensor data is being transferred in the background.
-
-        ￼
-        ￼
-        ￼
-        ￼
-        ￼
-        ￼
-
+        return 0;
     }
 
     // Set configuration register (no filter, 1000 ms standby time)
