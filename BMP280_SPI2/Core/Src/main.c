@@ -225,6 +225,10 @@ static void MX_I2C1_Init(void)
   }
   /* USER CODE BEGIN I2C1_Init 2 */
 
+  HAL_NVIC_SetPriority(I2C1_EV_IRQn, 1, 0); // Set priority
+  HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);        // Enable SPI2 interrupt
+  HAL_NVIC_EnableIRQ(I2C1_ER_IRQn);        // Enable SPI2 interrupt
+
   /* USER CODE END I2C1_Init 2 */
 
 }
