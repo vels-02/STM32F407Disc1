@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "BMP280_SPI.h"
+#include "BMP280_I2C.h"
 #include "uart_handler.h"
 #include "led_control.h"
 /* USER CODE END Includes */
@@ -43,7 +44,10 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 SPI_HandleTypeDef hspi2;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -56,6 +60,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 
@@ -97,14 +102,23 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI2_Init();
   MX_USART2_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
   UART_Init(&huart2);
 
   if (!BMP280_SPI_Init())
   {
-      printf("BMP280 Initialized\n");
-      return 0;
+      printf("BMP280 not Initialized\r\n");
+      //return 0;
+  }
+
+
+  uint8_t BMP280_I2C_DeviceID = BMP280_I2C_Init();
+
+  if (BMP280_I2C_DeviceID )
+  {
+	  printf("Velu BMP280 I2C Chip ID: 0x%X\r\n", BMP280_I2C_DeviceID);
   }
 
   /* USER CODE END 2 */
@@ -122,7 +136,8 @@ int main(void)
 	if (HAL_GetTick() - lastTick >= 3000) // Check if 1 second has passed
 	{
 		lastTick = HAL_GetTick();
-		BMP280_SPI_ReadSensorData();
+		//BMP280_SPI_ReadSensorData();
+		BMP280_I2C_ReadSensorData();
 	}
 
 	if (uart_led_cmd_ready)
@@ -181,6 +196,40 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
   * @brief SPI2 Initialization Function
   * @param None
   * @retval None
@@ -213,6 +262,9 @@ static void MX_SPI2_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN SPI2_Init 2 */
+
+  HAL_NVIC_SetPriority(SPI2_IRQn, 1, 0); // Set priority
+  HAL_NVIC_EnableIRQ(SPI2_IRQn);        // Enable SPI2 interrupt
 
   /* USER CODE END SPI2_Init 2 */
 
@@ -387,14 +439,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(OTG_FS_OverCurrent_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : Audio_SCL_Pin Audio_SDA_Pin */
-  GPIO_InitStruct.Pin = Audio_SCL_Pin|Audio_SDA_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : MEMS_INT2_Pin */
   GPIO_InitStruct.Pin = MEMS_INT2_Pin;
