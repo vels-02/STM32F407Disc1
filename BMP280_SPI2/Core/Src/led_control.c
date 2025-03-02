@@ -20,24 +20,32 @@ void TurnOFF_all_LEDs()
 
 void Process_LED_Commands(const char* cmd)
 {
+	if (cmd == NULL || strlen(cmd) == 0) {
+
+	    printf("Error: Invalid command\r\n");
+	    return;
+	}
 		printf("Received input: %s\r\n", cmd);
 		TurnOFF_all_LEDs();
 
-		if ( strncmp("green",(char*)cmd, strlen("green")) == 0)
+		if ( strcmp("green",cmd) == 0)
 		{
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOD, GREEN_LED_PIN, GPIO_PIN_SET);
 		}
-		else if ( strncmp("orange",(char*)cmd,strlen("orange")) == 0)
+		else if ( strcmp("orange",cmd) == 0)
 		{
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOD, ORANGE_LED_PIN, GPIO_PIN_SET);
 		}
-		else if ( strncmp("red",(char*)cmd,strlen("red")) == 0)
+		else if ( strcmp("red",cmd) == 0)
 		{
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOD, RED_LED_PIN, GPIO_PIN_SET);
 		}
-		else if ( strncmp("blue",(char*)cmd,strlen("blue")) == 0)
+		else if ( strcmp("blue",cmd) == 0)
 		{
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOD, BLUE_LED_PIN, GPIO_PIN_SET);
+		}
+		else {
+		    printf("Invalid LED command received: %s\r\n", cmd);
 		}
 }
 
