@@ -28,11 +28,6 @@ HAL_StatusTypeDef status;
 volatile uint8_t rxReadComplete = 0;
 volatile uint8_t rxWriteComplete = 0;
 
-void I2C1_EV_IRQHandler(void)
-{
-	 HAL_I2C_EV_IRQHandler(&hi2c1);
-}
-
 // Callback for I2C error
 void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
     if (hi2c->Instance == I2C1) {
@@ -147,27 +142,27 @@ uint8_t BMP280_I2C_Init(void) {
         printf("I2C BMP280 found! Device ID: 0x%02X\r\n", deviceID);
     }
 
-    if (BMP280_I2C_WriteRegister_IT(BMP280_REG_CTRL_MEAS, 0x27) != HAL_OK) {
+    if (BMP280_I2C_WriteRegister(BMP280_REG_CTRL_MEAS, 0x27) != HAL_OK) {
         printf("Failed to configure BMP280.\r\n");
         return HAL_ERROR;
     }
-	if (WaitForConditionWithTimeout(&rxWriteComplete, 1000) != HAL_OK) {
+	/*if (WaitForConditionWithTimeout(&rxWriteComplete, 1000) != HAL_OK) {
 		printf("I2C write timeout occurred\r\n");
 		rxWriteComplete = 0;
 		return HAL_ERROR;
-	}
+	}*/
 	rxWriteComplete = 0;
 
 
-    if (BMP280_I2C_WriteRegister_IT(BMP280_REG_CONF_REG, 0xA0) != HAL_OK) {
+    if (BMP280_I2C_WriteRegister(BMP280_REG_CONF_REG, 0xA0) != HAL_OK) {
         printf("Failed to configure BMP280.\r\n");
         return HAL_ERROR;
     }
-	if (WaitForConditionWithTimeout(&rxWriteComplete, 1000) != HAL_OK) {
+	/*if (WaitForConditionWithTimeout(&rxWriteComplete, 1000) != HAL_OK) {
 		printf("I2C write timeout occurred\r\n");
 		rxWriteComplete = 0;
 		return HAL_ERROR;
-	}
+	}*/
     rxWriteComplete = 0;
 
     BMP280_I2C_ReadSensorCalibData();
@@ -189,7 +184,6 @@ uint8_t BMP280_I2C_ReadSensorData(void) {
 		return HAL_ERROR;
 	}
 	rxReadComplete = 0;
-
     status = BMP280_I2C_ReadRegister_IT(BMP280_REG_PRESS_MSB, press_data, 3);
     if (!status) {
         printf("Error Reading pressure sensor data \r\n");

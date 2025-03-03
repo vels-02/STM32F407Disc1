@@ -133,7 +133,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	//HAL_Delay(1000);
 
-	if (HAL_GetTick() - lastTick >= 3000) // Check if 1 second has passed
+	if (HAL_GetTick() - lastTick >= 500) // Check if 1 second has passed
 	{
 		lastTick = HAL_GetTick();
 		//BMP280_SPI_ReadSensorData();
