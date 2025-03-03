@@ -68,8 +68,6 @@ uint8_t BMP280_ReadRegister(uint8_t reg, uint8_t *pData, uint8_t len) {
     uint8_t txData = reg | 0x80; // Set read bit
 
     BMP280_CS_LOW();
-    HAL_Delay(1); // Short delay to ensure chip readiness
-
     HAL_StatusTypeDef status = HAL_SPI_Transmit(&hspi2, &txData, 1, HAL_MAX_DELAY);
     if (status != HAL_OK) {
         printf("HAL Transmit error: %d \r\n", status);
@@ -85,7 +83,6 @@ uint8_t BMP280_ReadRegister(uint8_t reg, uint8_t *pData, uint8_t len) {
     }
 
     BMP280_CS_HIGH();
-    HAL_Delay(1); // Short delay after deselecting
     return 1;
 }
 
@@ -93,7 +90,6 @@ HAL_StatusTypeDef BMP280_WriteRegister(uint8_t reg, uint8_t value) {
     uint8_t txData[2] = {reg & 0x7F, value}; // Mask register address for write operation
 
     BMP280_CS_LOW();
-    HAL_Delay(1); // Short delay to ensure chip readiness
 
     HAL_StatusTypeDef status = HAL_SPI_Transmit(&hspi2, txData, 2, HAL_MAX_DELAY);
     if (status != HAL_OK) {

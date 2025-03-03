@@ -133,7 +133,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	//HAL_Delay(1000);
 
-	if (HAL_GetTick() - lastTick >= 3000) // Check if 1 second has passed
+	if (HAL_GetTick() - lastTick >= 500) // Check if 1 second has passed
 	{
 		lastTick = HAL_GetTick();
 		//BMP280_SPI_ReadSensorData();
@@ -224,6 +224,10 @@ static void MX_I2C1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN I2C1_Init 2 */
+
+  HAL_NVIC_SetPriority(I2C1_EV_IRQn, 1, 0); // Set priority
+  HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);        // Enable SPI2 interrupt
+  HAL_NVIC_EnableIRQ(I2C1_ER_IRQn);        // Enable SPI2 interrupt
 
   /* USER CODE END I2C1_Init 2 */
 

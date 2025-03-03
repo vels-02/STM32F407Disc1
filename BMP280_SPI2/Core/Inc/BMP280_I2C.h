@@ -11,8 +11,6 @@
 
 #include "stm32f4xx_hal.h"
 
-
-
 //Function declaration to read device id
 uint8_t BMP280_I2C_ReadDeviceID(void);
 HAL_StatusTypeDef BMP280_I2C_WriteRegister(uint8_t reg, uint8_t value);
