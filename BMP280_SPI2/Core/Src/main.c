@@ -27,6 +27,11 @@
 #include "BMP280_I2C.h"
 #include "uart_handler.h"
 #include "led_control.h"
+
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,6 +41,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#define UART_QUEUE_SIZE  10
+#define UART_MSG_MAX_LEN 50
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,6 +53,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
 I2C_HandleTypeDef hi2c1;
 
 SPI_HandleTypeDef hspi2;
@@ -51,7 +62,10 @@ SPI_HandleTypeDef hspi2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+TaskHandle_t LED_TaskHandle;
+TaskHandle_t BMP280_SensorHandle;
+QueueHandle_t uartQueue;
+uint8_t cmdBuffer[RX_BUFFER_SIZE];
 
 /* USER CODE END PV */
 
@@ -61,6 +75,7 @@ static void MX_GPIO_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 
@@ -69,6 +84,55 @@ static void MX_I2C1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void LED_Task(void *pvParameters) {
+
+    for (;;) {
+        HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_15);  // Toggle LED
+        vTaskDelay(pdMS_TO_TICKS(1000));       // 1-second delay
+
+        // Wait for a command from the queue
+        if (xQueueReceive(uartQueue, cmdBuffer, portMAX_DELAY)) {
+            Process_LED_Commands((const char *)cmdBuffer);
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+    }
+}
+
+void BMP280_Sensor_Task(void *pvArgs)
+{
+	uint8_t BMP280_I2C_DeviceID = BMP280_I2C_Init();
+
+	if (BMP280_I2C_DeviceID )
+	{
+	  printf("Velu BMP280 I2C Chip ID: 0x%X\r\n", BMP280_I2C_DeviceID);
+	}
+	for(;;){
+		BMP280_I2C_ReadSensorData();
+	    vTaskDelay(pdMS_TO_TICKS(1000));       // 1-second delay
+
+	}
+
+}
+
+void create_rtos_tasks() {
+    // Create the LED control task
+    BaseType_t ledTaskStatus = xTaskCreate(LED_Task, "LED_Task", 256, NULL, 1, &LED_TaskHandle);
+    if (ledTaskStatus != pdPASS) {
+        printf("Failed to create LED Task \r\n");
+    }
+
+    BaseType_t sensorTaskStatus = xTaskCreate(BMP280_Sensor_Task, "Sensor_Task", 512, NULL, 2, &BMP280_SensorHandle);  // Higher priority
+    	  if ( sensorTaskStatus != pdPASS)
+    	  {
+    		  printf("Failed to create BMP280 Sensor Task \r\n");
+    	  }
+
+    printf("RTOS task created  \r\n");
+
+
+}
+
 
 /* USER CODE END 0 */
 
@@ -103,6 +167,7 @@ int main(void)
   MX_SPI2_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
   UART_Init(&huart2);
@@ -113,19 +178,21 @@ int main(void)
       //return 0;
   }
 
-
-  uint8_t BMP280_I2C_DeviceID = BMP280_I2C_Init();
-
-  if (BMP280_I2C_DeviceID )
-  {
-	  printf("Velu BMP280 I2C Chip ID: 0x%X\r\n", BMP280_I2C_DeviceID);
+  uartQueue = xQueueCreate(3,RX_BUFFER_SIZE * sizeof(char));
+  if (uartQueue == NULL) {
+      printf("Queue creation failed!\r\n");
   }
+
+  create_rtos_tasks();
+
+  // Start the FreeRTOS scheduler
+  vTaskStartScheduler();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t lastTick = 0;
+ // uint32_t lastTick = 0;
   while (1)
   {
     /* USER CODE END WHILE */
@@ -133,17 +200,12 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	//HAL_Delay(1000);
 
-	if (HAL_GetTick() - lastTick >= 500) // Check if 1 second has passed
+/*	if (HAL_GetTick() - lastTick >= 500) // Check if 1 second has passed
 	{
 		lastTick = HAL_GetTick();
 		//BMP280_SPI_ReadSensorData();
-		BMP280_I2C_ReadSensorData();
-	}
 
-	if (uart_led_cmd_ready)
-	{
-		Handle_LED_Commands();
-	}
+	} */
 
   }
   /* USER CODE END 3 */
@@ -193,6 +255,58 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_TEMPSENSOR;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**
@@ -303,7 +417,7 @@ static void MX_USART2_UART_Init(void)
   }
   /* USER CODE BEGIN USART2_Init 2 */
 
-  HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(USART2_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(USART2_IRQn);
 
   /* USER CODE END USART2_Init 2 */
@@ -456,7 +570,33 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+void vApplicationIdleHook(void) {
+    // Optional: Add low-priority background tasks here
+    // For now, leave it empty if not needed
+}
+
 /* USER CODE END 4 */
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

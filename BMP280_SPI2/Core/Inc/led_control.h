@@ -16,5 +16,6 @@
 
 void TurnOFF_all_LEDs();
 void Process_LED_Commands(const char* cmd);
+void LED_Task(void *pvParameters);
 
 #endif /* INC_LED_CONTROL_H_ */

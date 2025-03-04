@@ -8,12 +8,19 @@
 #include "uart_handler.h"
 #include "led_control.h"
 
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+
 uint8_t rxBuffer[RX_BUFFER_SIZE];
 volatile uint8_t rx_index = 0;
-volatile uint8_t uart_led_cmd_ready;
-uint8_t cmdBuffer[RX_BUFFER_SIZE];
+//volatile uint8_t uart_led_cmd_ready;
+
 
 extern UART_HandleTypeDef huart2;
+extern QueueHandle_t uartQueue;
+
 
 // Redirect printf to UART2
 int __io_putchar(int ch) {
@@ -38,13 +45,25 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
         if (rxBuffer[rx_index] == '\r' || rxBuffer[rx_index] == '\n') {
             rxBuffer[rx_index] = '\0';  // Null-terminate
-            if (rx_index > 0) {        // Only print if there's actual content
+            if (rx_index > 0) {
+            	 uint8_t tempBuffer[RX_BUFFER_SIZE];
+            	// Only print if there's actual content
                // printf("Received input: %s\r\n", rxBuffer);
-            	strcpy((char*)cmdBuffer, (char*)rxBuffer);
-            	uart_led_cmd_ready =1;
+            	strcpy((char *)tempBuffer, (char *)rxBuffer);
+
+            	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+            	BaseType_t result = xQueueSendFromISR(uartQueue, tempBuffer, &xHigherPriorityTaskWoken);
+
+            	if (result == errQUEUE_FULL) {
+            	    printf("Queue send failed: Queue full!\r\n");
+            	} else if (result != pdTRUE) {
+            	    printf("Queue send failed: Unknown error!\r\n");
+            	}
+            	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
             } else {
                 printf("Received empty input\r\n");  // Debugging empty input
             }
+
             rx_index = 0;  // Reset for the next message
 
             memset((uint8_t*)rxBuffer,0,RX_BUFFER_SIZE);
@@ -55,15 +74,4 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
         // Start receiving next byte
         HAL_UART_Receive_IT(&huart2, (uint8_t *)&rxBuffer[rx_index], 1);
     }
-}
-
-void Handle_LED_Commands()
-{
-	if (uart_led_cmd_ready)
-	{
-		Process_LED_Commands((const char *)cmdBuffer);
-		//clear the buffer & flag
-		memset((uint8_t*)cmdBuffer,0,RX_BUFFER_SIZE);
-		uart_led_cmd_ready = 0;
-	}
 }
